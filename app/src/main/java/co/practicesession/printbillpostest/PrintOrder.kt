@@ -8,10 +8,9 @@ import java.lang.Exception
 /**
  * Created by Divya Gupta on 09-Jan-20.
  **/
-class PrintOrder {
+class PrintOrder(private val deviceSpecListener: DeviceSpecListener) {
     private lateinit var usbA: UsbAdapter
     fun print(context: Context, msg: String) {
-        usbA = UsbAdapter()
 
         try {
             usbA.printMessage(context, msg)
@@ -22,6 +21,7 @@ class PrintOrder {
     }
 
     fun createConn(context: Context) {
+        usbA = UsbAdapter(deviceSpecListener)
         usbA.createCon(context)
     }
 

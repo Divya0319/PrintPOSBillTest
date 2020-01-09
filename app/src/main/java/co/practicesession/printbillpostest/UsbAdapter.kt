@@ -11,7 +11,7 @@ import android.widget.Toast
 /**
  * Created by Divya Gupta on 09-Jan-20.
  **/
-class UsbAdapter {
+class UsbAdapter(private val listener: DeviceSpecListener) {
 
     companion object {
         const val ACTION_USB_PERMISSION = "co.behtarinternal.thermalprinter.USB_PERMISSION"
@@ -24,7 +24,6 @@ class UsbAdapter {
     private var mInterface: UsbInterface? = null
     private var mEndPoint: UsbEndpoint? = null
     private lateinit var mPermissionIntent: PendingIntent
-    var connection: UsbDeviceConnection? = null
     private val forceClaim: Boolean = true
 
     private val mUsbReceiver = object : BroadcastReceiver() {
@@ -34,12 +33,11 @@ class UsbAdapter {
                 synchronized(this) {
 
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        val deviceAttachedFilter =
-                            IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED)
-                        context?.applicationContext?.registerReceiver(
-                            mUsbAttachedReceiver,
-                            deviceAttachedFilter
-                        )
+                        mInterface = mUsbDevice.getInterface(0)
+                        mEndPoint =
+                            mInterface?.getEndpoint(1) // 0 IN and  1 OUT to printer.
+                        mConnection = mUsbManager.openDevice(mUsbDevice)
+
                     } else {
                         Toast.makeText(
                             context,
@@ -53,41 +51,24 @@ class UsbAdapter {
 
     }
 
-    private val mUsbAttachedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val action = intent?.action
-
-            if (UsbManager.ACTION_USB_DEVICE_ATTACHED == action) {
-                Toast.makeText(context, "New Device Connected", Toast.LENGTH_SHORT).show()
-                mInterface = mUsbDevice.getInterface(0)
-                mEndPoint =
-                    mInterface?.getEndpoint(1) // 0 IN and  1 OUT to printer.
-                mConnection = mUsbManager.openDevice(mUsbDevice)
-
-                getConnectedPrinterData(context!!)
-            }
-        }
-
-    }
-
     private val mUsbDetachedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action
 
             if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
-                Toast.makeText(context, "Device closed", Toast.LENGTH_SHORT).show()
-                connection?.close()
+                Toast.makeText(context, "Device unplugged", Toast.LENGTH_SHORT).show()
+                mConnection?.close()
             }
         }
 
     }
 
     fun createCon(context: Context) {
-        mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         mPermissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
-        val usbPermFilter = IntentFilter(ACTION_USB_PERMISSION)
+        mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+
+        getConnectedPrinterData(context)
         val usbDetachedFilter = IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        context.registerReceiver(mUsbReceiver, usbPermFilter)
         context.registerReceiver(mUsbDetachedReceiver, usbDetachedFilter)
     }
 
@@ -122,47 +103,56 @@ class UsbAdapter {
 
                 Toast.makeText(context, "INTERFACE COUNT: $interfaceCount", Toast.LENGTH_SHORT)
                     .show()
+                mUsbDevice = usbDevice1
+                listener.onDeviceSpecReceived(usbDevice)
+
 
 
                 Toast.makeText(context, "Device is attached", Toast.LENGTH_SHORT).show()
 
             }
+
+            mPermissionIntent =
+                PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
+            val usbPermFilter = IntentFilter(ACTION_USB_PERMISSION)
+            context.registerReceiver(mUsbReceiver, usbPermFilter)
+
+            mUsbManager.requestPermission(mUsbDevice, mPermissionIntent)
+        } else {
+            Toast.makeText(context, "Please attach printer via USB", Toast.LENGTH_SHORT).show()
         }
+
     }
 
     fun printMessage(context: Context, msg: String) {
-        if (mUsbManager.hasPermission(mUsbDevice)) {
-            val test = msg + "\n\n"
+        val test = msg + "\n\n"
 
-            val testBytes = test.toByteArray()
+        val testBytes = test.toByteArray()
 
-            when {
-                mInterface == null -> {
-                    Toast.makeText(context, "INTERFACE IS NULL", Toast.LENGTH_SHORT).show()
-                }
-                connection == null -> {
-                    Toast.makeText(context, "CONNECTION IS NULL", Toast.LENGTH_SHORT).show()
-                }
-                else -> {
-                    connection?.claimInterface(mInterface, forceClaim)
+        when {
+            mInterface == null -> {
+                Toast.makeText(context, "INTERFACE IS NULL", Toast.LENGTH_SHORT).show()
+            }
+            mConnection == null -> {
+                Toast.makeText(context, "CONNECTION IS NULL", Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                mConnection?.claimInterface(mInterface, forceClaim)
 
-                    val thread = Thread(Runnable {
-                        val center = byteArrayOf(0x1b, 0x61, 0x01)
+                val thread = Thread(Runnable {
+                    val center = byteArrayOf(0x1b, 0x61, 0x01)
 //                    val cutPaper = byteArrayOf(0x1D, 0x56, 0x41, 0x10)
 //                    val cutPaper = byteArrayOf(0x0a, 0x0a, 0x0a, 0x0a)
-                        connection?.bulkTransfer(mEndPoint, center, center.size, 0)
-                        connection?.bulkTransfer(mEndPoint, testBytes, testBytes.size, 0)
-                    })
-                    thread.run()
+                    mConnection?.bulkTransfer(mEndPoint, center, center.size, 0)
+                    mConnection?.bulkTransfer(mEndPoint, testBytes, testBytes.size, 0)
+                })
+                thread.run()
 
-                    connection?.releaseInterface(mInterface)
-                }
+                mConnection?.releaseInterface(mInterface)
             }
-        } else {
-            mUsbManager.requestPermission(mUsbDevice, mPermissionIntent)
-            Toast.makeText(context, "Device has no permission", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     private fun translateDeviceClass(deviceClass: Int): String? {
         return when (deviceClass) {
@@ -187,8 +177,7 @@ class UsbAdapter {
         }
     }
 
-    fun unregisterAllReceivers(context: Context){
-        context.unregisterReceiver(mUsbAttachedReceiver)
+    fun unregisterAllReceivers(context: Context) {
         context.unregisterReceiver(mUsbDetachedReceiver)
         context.unregisterReceiver(mUsbReceiver)
     }
