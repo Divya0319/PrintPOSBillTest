@@ -27,15 +27,6 @@ class UsbAdapter {
     var connection: UsbDeviceConnection? = null
     private val forceClaim: Boolean = true
 
-    fun createCon(context: Context) {
-        mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
-        mPermissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
-        val usbPermFilter = IntentFilter(ACTION_USB_PERMISSION)
-        val usbDetachedFilter = IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        context.registerReceiver(mUsbReceiver, usbPermFilter)
-        context.registerReceiver(mUsbDetachedReceiver, usbDetachedFilter)
-    }
-
     private val mUsbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action
@@ -77,6 +68,27 @@ class UsbAdapter {
             }
         }
 
+    }
+
+    private val mUsbDetachedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.action
+
+            if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
+                Toast.makeText(context, "Device closed", Toast.LENGTH_SHORT).show()
+                connection?.close()
+            }
+        }
+
+    }
+
+    fun createCon(context: Context) {
+        mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+        mPermissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
+        val usbPermFilter = IntentFilter(ACTION_USB_PERMISSION)
+        val usbDetachedFilter = IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        context.registerReceiver(mUsbReceiver, usbPermFilter)
+        context.registerReceiver(mUsbDetachedReceiver, usbDetachedFilter)
     }
 
     private fun getConnectedPrinterData(context: Context) {
@@ -173,18 +185,6 @@ class UsbAdapter {
             UsbConstants.USB_CLASS_WIRELESS_CONTROLLER -> "USB class for wireless controller devices"
             else -> "Unknown USB class!"
         }
-    }
-
-    private val mUsbDetachedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val action = intent?.action
-
-            if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
-                Toast.makeText(context, "Device closed", Toast.LENGTH_SHORT).show()
-                connection?.close()
-            }
-        }
-
     }
 
     fun unregisterAllReceivers(context: Context){

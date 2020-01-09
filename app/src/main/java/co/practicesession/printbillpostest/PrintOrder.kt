@@ -12,7 +12,6 @@ class PrintOrder {
     private lateinit var usbA: UsbAdapter
     fun print(context: Context, msg: String) {
         usbA = UsbAdapter()
-        usbA.createCon(context)
 
         try {
             usbA.printMessage(context, msg)
@@ -20,6 +19,10 @@ class PrintOrder {
             Crashlytics.logException(ex)
             Toast.makeText(context.applicationContext, ex.message, Toast.LENGTH_LONG).show()
         }
+    }
+
+    fun createConn(context: Context) {
+        usbA.createCon(context)
     }
 
     fun unregisterAllReceivers(context: Context) {
