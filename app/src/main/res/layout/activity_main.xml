@@ -10,9 +10,9 @@
         android:id="@+id/usbDevice"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Dummy"
         android:layout_margin="10dp"
         android:gravity="center"
+        android:text="Device specs go here"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -22,6 +22,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:hint="Enter text to print"
+        android:inputType="textMultiLine"
+        android:text="Behtar\nis\nsupermarket\nchain"
         android:textSize="25sp"
         app:layout_constraintTop_toBottomOf="@id/usbDevice" />
 

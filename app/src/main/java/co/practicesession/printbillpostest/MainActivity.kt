@@ -12,19 +12,22 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import java.nio.charset.Charset
 
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        const val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
+    }
+
     private lateinit var usbManager: UsbManager
     private lateinit var mDevice: UsbDevice
     private var mConnection: UsbDeviceConnection? = null
     private lateinit var mInterface: UsbInterface
     private var mEndPoint: UsbEndpoint? = null
     private var mPermissionIntent: PendingIntent? = null
-    private var edTxt: EditText? = null
-    private val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
-    private val forceCLaim: Boolean = true
+    private lateinit var edTxt: EditText
+    private val forceClaim: Boolean = true
 
     private lateinit var mDeviceList: HashMap<String, UsbDevice>
     private lateinit var mDeviceIterator: Iterator<UsbDevice>
@@ -56,14 +59,12 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    override fun onResume() {
+        super.onResume()
+        checkPrinterConnectedOrNot()
+    }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        edTxt = findViewById(R.id.ed_txt)
-        val print = findViewById<Button>(R.id.print)
-
+    private fun checkPrinterConnectedOrNot() {
         usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
 
         mDeviceList = usbManager.deviceList
@@ -112,6 +113,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "Please attach printer via USB", Toast.LENGTH_SHORT).show()
         }
+    }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        edTxt = findViewById(R.id.ed_txt)
+        val print = findViewById<Button>(R.id.print)
 
         print.setOnClickListener {
             print(mConnection, mInterface)
@@ -120,8 +130,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun print(connection: UsbDeviceConnection?, usbInterface: UsbInterface?) {
-        val test = edTxt?.text.toString() + "\n\n"
-        testBytes = test.toByteArray(Charset.forName("UTF-8"))
+        val test = edTxt.text.toString()
+        testBytes = test.toByteArray()
 
         when {
             usbInterface == null -> {
@@ -131,13 +141,12 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "CONNECTION IS NULL", Toast.LENGTH_SHORT).show()
             }
             else -> {
-                connection.claimInterface(usbInterface, forceCLaim)
+                connection.claimInterface(usbInterface, forceClaim)
 
                 val thread = Thread(Runnable {
-                    val cutPaper = byteArrayOf(0x1D, 0x56, 0x41, 0x10 )
+                    val cutPaper = byteArrayOf(0x1D, 0x56, 0x41, 0x10)
                     connection.bulkTransfer(mEndPoint, testBytes, testBytes.size, 0)
                     connection.bulkTransfer(mEndPoint, cutPaper, cutPaper.size, 0)
-
 
                 })
 
