@@ -16,10 +16,6 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
-    companion object {
-        const val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
-    }
-
     private lateinit var usbManager: UsbManager
     private lateinit var mDevice: UsbDevice
     private var mConnection: UsbDeviceConnection? = null
@@ -31,7 +27,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var mDeviceList: HashMap<String, UsbDevice>
     private lateinit var mDeviceIterator: Iterator<UsbDevice>
-    private lateinit var testBytes: ByteArray
 
     private val mUsbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -130,9 +125,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun print(connection: UsbDeviceConnection?, usbInterface: UsbInterface?) {
-        val test = edTxt?.text.toString() + "\n\n"
+        val test = edTxt.text.toString() + "\n\n"
 
-        var testBytes = test.toByteArray()
+        val testBytes = test.toByteArray()
 
         when {
             usbInterface == null -> {
@@ -177,5 +172,9 @@ class MainActivity : AppCompatActivity() {
             UsbConstants.USB_CLASS_WIRELESS_CONTROLLER -> "USB class for wireless controller devices"
             else -> "Unknown USB class!"
         }
+    }
+
+    companion object {
+        const val ACTION_USB_PERMISSION = "co.behtar.thermalprinter.USB_PERMISSION"
     }
 }
