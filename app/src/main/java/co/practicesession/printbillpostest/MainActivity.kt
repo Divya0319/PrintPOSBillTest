@@ -130,8 +130,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun print(connection: UsbDeviceConnection?, usbInterface: UsbInterface?) {
-        val test = edTxt.text.toString()
-        testBytes = test.toByteArray()
+        val test = edTxt?.text.toString() + "\n\n"
+
+        var testBytes = test.toByteArray()
 
         when {
             usbInterface == null -> {
@@ -144,16 +145,15 @@ class MainActivity : AppCompatActivity() {
                 connection.claimInterface(usbInterface, forceClaim)
 
                 val thread = Thread(Runnable {
-                    val cutPaper = byteArrayOf(0x1D, 0x56, 0x41, 0x10)
+                    val center = byteArrayOf(0x1b, 0x61, 0x01)
+//                    val cutPaper = byteArrayOf(0x1D, 0x56, 0x41, 0x10)
+//                    val cutPaper = byteArrayOf(0x0a, 0x0a, 0x0a, 0x0a)
+                    connection.bulkTransfer(mEndPoint, center, center.size, 0)
                     connection.bulkTransfer(mEndPoint, testBytes, testBytes.size, 0)
-                    connection.bulkTransfer(mEndPoint, cutPaper, cutPaper.size, 0)
-
                 })
-
                 thread.run()
             }
         }
-
     }
 
     private fun translateDeviceClass(deviceClass: Int): String? {
